@@ -6,6 +6,7 @@
         <file>settings.png</file>
         <file>small_elegant_logo.png</file>
         <file>close.png</file>
+        <file>imp.png</file>
     </qresource>
     <qresource prefix="/fonts">
         <file>Barcode39.ttf</file>

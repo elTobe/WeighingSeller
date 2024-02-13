@@ -21,15 +21,21 @@ public:
 
     bool debug = true;
 
+    float precio_oferta = 0.0;
+
 public slots:
     void cambiar_estado_bascula(bool estado);
 
     void cambiar_indicador_peso(QString peso);
 
+    void reimpresion_ticket();
+
 private slots:
     void on_pushButton_3_clicked();
 
     void on_pushButton_4_clicked();
+
+    void on_pushButton_2_clicked();
 
 private:
     Ui::CajaPesaje *ui;
@@ -37,6 +43,8 @@ private:
     void keyPressEvent(QKeyEvent *event);
 
     bool conectar_db(QSqlDatabase* db);
+
+    bool conectar_db_root(QSqlDatabase* db);
 
     BasculaHandler* handler;
 

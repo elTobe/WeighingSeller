@@ -91,6 +91,38 @@ bool CajaPesaje::conectar_db(QSqlDatabase* db){
     return true;
 }
 
+bool CajaPesaje::conectar_db_root(QSqlDatabase* db){
+    QString ip = "192.168.0.105";
+    QString port = "3306";
+    QString base = "sicar";
+    QString username = "root";
+    QString password = "super";
+
+    QFile file("ip_server.txt");
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
+        QTextStream in(&file);
+        ip = in.readLine();
+        port = in.readLine();
+        base = in.readLine();
+        file.close();
+    }
+
+    db->setHostName(ip);
+    db->setPort(port.toInt());
+    db->setDatabaseName(base);
+    db->setUserName(username);
+    db->setPassword(password);
+
+    if(!db->open()){
+        QMessageBox messageBox;
+        messageBox.critical(0,"Error", "No se pudo conectar a la base de datos !\nError: " + db->lastError().text() );
+        messageBox.setFixedSize(500,200);
+        return false;
+    }
+
+    return true;
+}
+
 CajaPesaje::~CajaPesaje()
 {
     delete ui;
@@ -108,7 +140,7 @@ void CajaPesaje::cambiar_indicador_peso(QString peso_string){
 
     if(debug){ui->debug->setText(peso_string);}
 
-    if( ui->label_venta_pieza->text().length() > 0 ){
+    if( ui->label_venta_pieza->text().contains("PIEZA") ){
         ui->label_importe->setText( ui->label_precio->text() );
     }else{
         bool tofloat;
@@ -207,10 +239,13 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
     if( tecla == Qt::Key_Slash ){
         if( ui->label_total->text() != "0.00"){
 
+            /////////////////////////////  IMPRESION DE TICKET  ////////////////////////////
+
             QPrinterInfo impresora_info = QPrinterInfo::defaultPrinter();
             QPrinter impresora = QPrinter(impresora_info,
                                           QPrinter::PrinterMode::ScreenResolution);
             int ancho = impresora_info.defaultPageSize().rectPixels(impresora.resolution()).width();
+            qDebug() << "Ancho impresora = " << ancho;
             int borde = 15;
             int fila = 3;
             QPainter documento;
@@ -249,7 +284,6 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
                 codigos << item->text(codigo);
                 cantidades << item->text(peso);
             }
-
 
             QString total = ui->label_total->text();
             QString total_text = QString("TOTAL : $" + ui->label_total->text().rightJustified(10,' ',false) + "   ").rightJustified(25,' ',true);
@@ -290,16 +324,38 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
             documento.end();
 
             ///////////////////////////  DESCONTAR INVENTARIO /////////////////////////////
+            bool descontar = false;
 
-            QSqlDatabase sicardb = QSqlDatabase::addDatabase("QMYSQL");
-            if( !conectar_db(&sicardb) ){
-                ui->label_codigo->setText("");
-                return;
+            QFile file("descontar_inventario.txt");
+            if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
+                QTextStream in(&file);
+                QString line = in.readLine();
+                if( line.contains("true") ){
+                    descontar = true;
+                }
+                file.close();
             }
-            QSqlQuery consulta;
-            for(int i = 0; i < codigos.length(); i++){
-                qDebug() << "Quitar a " << codigos.at(i) << " " << cantidades.at(i);
 
+            if( descontar ){
+                QSqlDatabase sicardb = QSqlDatabase::addDatabase("QMYSQL");
+                if( !conectar_db_root(&sicardb) ){
+                    QMessageBox messageBox;
+                    messageBox.critical(0,"Error", "No se pudo conectar a la base de datos !\nError: " + sicardb.lastError().text() + "\n No se modificó el inventario" );
+                    messageBox.setFixedSize(500,200);
+                    return;
+                }
+
+                for(int i = 0; i < codigos.length(); i++){
+                    QString cant_i = cantidades.at(i);
+                    bool ok_conv;
+                    float descontar_f = cant_i.toFloat(&ok_conv);
+
+                    if(ok_conv){
+                        QSqlQuery consulta;
+                        consulta.exec("UPDATE articulo SET existencia=existencia-"+ QVariant(descontar_f).toString() + " WHERE clave='VERYCAR" + codigos.at(i) + "'");
+                        qDebug() << consulta.lastError().text();
+                    }
+                }
             }
         }
     }
@@ -312,10 +368,15 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
 
             QTreeWidgetItem* item = new QTreeWidgetItem;
             item->setText( codigo, ui->label_codigo_hidden->text() );
-            item->setText( descripcion, ui->label_name->text() );
+            if( ui->label_venta_pieza->text().contains("OFERTA") ){
+                item->setText( descripcion, ui->label_name->text()  + " * OFERTA *" );
+            }else{
+                item->setText( descripcion, ui->label_name->text() );
+            }
+
             item->setText( simbolo, "$" );
 
-            if( ui->label_venta_pieza->text().length() > 0 ){
+            if( ui->label_venta_pieza->text().contains("PIEZA") ){
                 item->setText( unidad, "pz" );
                 if( ui->label_codigo->text() != "." && ui->label_codigo->text() != "0"){
                     if(ui->label_codigo->text() == ""){
@@ -351,7 +412,6 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
                     ui->lista->addTopLevelItem(item);
                     ui->lista->scrollToBottom();
                 }
-
             }
 
             QString t;
@@ -399,14 +459,27 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
         }
 
         QSqlQuery consulta;
-        consulta.exec("SELECT descripcion,precio1,unidadVenta,unidadCompra FROM articulo WHERE clave='VERYCAR" + cod + "' AND status!=-1");
+        consulta.exec("SELECT descripcion,precio1,precio4,unidadVenta,unidadCompra,impuesto FROM articulo a LEFT JOIN articuloimpuesto ai ON a.art_id=ai.art_id LEFT JOIN impuesto i ON i.imp_id=ai.imp_id WHERE clave='VERYCAR" + cod + "' AND a.status!=-1");
+        qDebug() << consulta.lastError().text();
         if(consulta.next()) {
 
             ui->label_codigo_hidden->setText(ui->label_codigo->text());
 
-            float p = consulta.value("precio1").toFloat();
+            float impuesto = 1;
+            if( !consulta.value("impuesto").toString().isEmpty() ){
+                impuesto = impuesto + consulta.value("impuesto").toFloat()/100.0;
+            } float p = consulta.value("precio1").toFloat();
+
+            if( !consulta.value("precio4").toString().isEmpty() ){
+                precio_oferta = consulta.value("precio4").toFloat();
+            }else{
+                precio_oferta = 0.0;
+            } precio_oferta *= impuesto;
+
+            qDebug() << precio_oferta;
+
             QString precio;
-            precio.setNum(p,'f',2);
+            precio.setNum(p*impuesto,'f',2);
             ui->label_precio->setText(precio);
 
             ui->label_name->setStyleSheet("color: #3379B7");
@@ -454,6 +527,37 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
         ui->label_codigo->setText("");
     }
 
+    /// ---------------------------------- OFERTAS ------------------------------
+    if( tecla == Qt::Key_Asterisk && precio_oferta != 0.0 ){
+
+        if( ui->label_venta_pieza->text().contains("OFERTA") ){
+            ui->label_precio->setStyleSheet("");
+            ui->label_kg_simbolo->setStyleSheet("");
+            ui->label_venta_pieza->setText(ui->label_venta_pieza->text().remove("** OFERTA **"));
+            if( ui->label_venta_pieza->text().contains("PIEZA") ){
+                ui->label_venta_pieza->setStyleSheet("color: green;");
+            }else{
+                ui->label_venta_pieza->setStyleSheet("");
+            }
+        }else{
+            ui->label_precio->setStyleSheet("color: teal");
+            ui->label_venta_pieza->setText(ui->label_venta_pieza->text() + "** OFERTA **");
+            ui->label_venta_pieza->setStyleSheet("color: teal;");
+            ui->label_kg_simbolo->setStyleSheet("color: teal;");
+        }
+
+        float temp = ui->label_precio->text().toFloat();
+
+        QString precio;
+        precio.setNum(precio_oferta,'f',2);
+        ui->label_precio->setText(precio);
+
+        precio_oferta = temp;
+    }
+}
+
+void CajaPesaje::reimpresion_ticket(){
+
 }
 
 void CajaPesaje::on_pushButton_3_clicked()
@@ -472,5 +576,11 @@ void CajaPesaje::on_pushButton_4_clicked()
             file.close();
         }
     }
+}
+
+
+void CajaPesaje::on_pushButton_2_clicked()
+{
+
 }
 
