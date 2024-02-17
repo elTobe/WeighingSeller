@@ -170,7 +170,7 @@ float CajaPesaje::redondear(float num){
     float imp = int( num*100 ) / 100.0 ;
     float centavos = imp - int(imp) ;
     if(centavos != 0.00 && centavos != 0.50){
-        if(centavos < 50){
+        if(centavos < 0.50){
             centavos = 0.50 - centavos;
         }else{
             centavos = 1 - centavos;
