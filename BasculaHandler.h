@@ -49,6 +49,7 @@ class BasculaHandler : public QThread
 
                 QString lectura = "";
                 bascula.write(QByteArray("P"));
+
                 if( !bascula.waitForReadyRead(100) ){
                     lectura = QString(bascula.readAll());
                     if(lectura.length()<3){
@@ -75,13 +76,16 @@ class BasculaHandler : public QThread
                               lectura.at(i) == "8" ||
                               lectura.at(i) == "9" ||
                               lectura.at(i) == ".") ){
-                            lectura.remove(i,1);
+                              lectura.remove(i,1);
                             i = i-1;
                         }
                     }
-                    emit this->lectura_terminada(lectura);
+                    if(lectura.at(0) != '.'){
+                        emit this->lectura_terminada(lectura);
+                    }
+
                 }
-                this->msleep(100);
+                this->msleep(50);
             }
         }
     }

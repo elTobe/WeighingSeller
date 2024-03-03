@@ -203,7 +203,7 @@ Puerto</string>
          </property>
          <property name="text">
           <string>Reimpresion
-Ticket</string>
+Ult. Ticket</string>
          </property>
          <property name="icon">
           <iconset resource="images.qrc">

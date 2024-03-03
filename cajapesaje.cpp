@@ -158,8 +158,8 @@ void CajaPesaje::cambiar_indicador_peso(QString peso_string){
                 ui->label_importe->setText("0.00");
             }
         }else{
-            ui->label_importe->setText("0.00");
             if( peso_string.contains("/") ){
+                ui->label_importe->setText("0.00");
                 ui->label_peso->setText(peso_string);
             }
         }
@@ -475,8 +475,6 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
             }else{
                 precio_oferta = 0.0;
             } precio_oferta *= impuesto;
-
-            qDebug() << precio_oferta;
 
             QString precio;
             precio.setNum(p*impuesto,'f',2);
