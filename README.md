@@ -17,10 +17,11 @@ WeighingSeller es una aplicación desarrollada en Qt 5.15.2 que permite la venta
 1. Clona este repositorio en tu máquina local.
 2. Instala Qt 5.15.2 y MinGW 8.1.0 en tu sistema si aún no lo has hecho.
 3. Compila el proyecto y genera el archivo ejecutable (`CajaPesaje.exe`).
-4. Configura la conexión a la base de datos SICAR Punto de Venta en la aplicación modificando el archivo `ip_server.txt`.
-5. Conecta la báscula compatible a tu sistema mediante el puerto COM (USB-Serial).
-6. Selecciona el puerto COM correcto y presiona el botón "SET". Reinicia la aplicación.
-7. Selecciona como impresora predeterminada de Windows la impresora termica.
+4. Instala el setup `VC_redist` ubicado en la carpeta `doc/install_req/`.
+5. Configura la conexión a la base de datos SICAR Punto de Venta en la aplicación modificando el archivo `ip_server.txt`.
+6. Conecta la báscula compatible a tu sistema mediante el puerto COM (USB-Serial).
+7. Selecciona el puerto COM correcto y presiona el botón "SET". Reinicia la aplicación.
+8. Selecciona como impresora predeterminada de Windows la impresora termica.
 
 ## Uso
 
