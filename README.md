@@ -1,8 +1,8 @@
 # WeighingSeller
 
-WeighingSeller es una aplicación desarrollada en Qt 5.15.2 que permite la venta de productos con báscula, conectándose a SICAR Punto de Venta para obtener información de los productos. El programa está diseñado para obtener retroalimentación continua del peso y costo del producto, permitiendo incluir varios productos en un ticket que se genera automáticamente. 
+WeighingSeller es una aplicación desarrollada en Qt 5.15.2 que permite la venta de productos con báscula, conectándose a SICAR Punto de Venta para obtener información de los productos. El programa está diseñado para obtener retroalimentación continua del peso e importe del producto, permitiendo incluir varios productos en un ticket de impresora térmica.
 
-![WeighingSeller](doc/img/workflow1.gif)
+![WeighingSeller](doc/img/workflow.gif)
 
 ## Requisitos
 
