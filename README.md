@@ -42,7 +42,7 @@ Notas:
 - La impresión se realiza en la impresora predeterminada del ordenador.
 - Para cambiar el puerto COM, selecciona el puerto en el administrador de dispositivos y presiona el botón "SET", luego reinicia la aplicación.
 - Este programa está pensado para depender únicamente de la parte numérica de un teclado, por motivos prácticos.
-- 
+
 ## Contribuciones y Uso del Código
 
 Este proyecto se ofrece como un recurso abierto para la comunidad, destinado a servir como ejemplo de un cajero sencillo desarrollado en Qt. Si bien puedes utilizar este código como base para adaptarlo a tus propias necesidades comerciales y realizar modificaciones para tu negocio, te animamos a hacerlo de manera responsable.
