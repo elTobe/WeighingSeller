@@ -19,8 +19,6 @@ public:
     CajaPesaje(QWidget *parent = nullptr);
     ~CajaPesaje();
 
-    bool debug = true;
-
     float precio_oferta = 0.0;
 
 public slots:
@@ -28,7 +26,7 @@ public slots:
 
     void cambiar_indicador_peso(QString peso);
 
-    void reimpresion_ticket();
+    void recv_debug(QString lectura);
 
 private slots:
     void on_pushButton_3_clicked();

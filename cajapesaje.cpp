@@ -42,6 +42,10 @@ CajaPesaje::CajaPesaje(QWidget *parent)
     connect(handler, &BasculaHandler::lectura_terminada,
             this, &CajaPesaje::cambiar_indicador_peso);
 
+    connect(handler, &BasculaHandler::emit_debug,
+            this, &CajaPesaje::recv_debug);
+
+
     handler->start();
 
     ui->label_name->setFocus();
@@ -53,8 +57,6 @@ CajaPesaje::CajaPesaje(QWidget *parent)
     ui->lista->header()->setSectionResizeMode(descripcion, QHeaderView::Stretch);
     ui->lista->header()->setSectionResizeMode(simbolo, QHeaderView::ResizeToContents);
     ui->lista->header()->setSectionResizeMode(importe, QHeaderView::ResizeToContents);
-
-    this->debug = false;
 }
 
 bool CajaPesaje::conectar_db(QSqlDatabase* db){
@@ -136,9 +138,11 @@ void CajaPesaje::cambiar_estado_bascula(bool estado){
     }
 }
 
-void CajaPesaje::cambiar_indicador_peso(QString peso_string){
+void CajaPesaje::recv_debug(QString lectura){
+    ui->debug->setText(lectura);
+}
 
-    if(debug){ui->debug->setText(peso_string);}
+void CajaPesaje::cambiar_indicador_peso(QString peso_string){
 
     if( ui->label_venta_pieza->text().contains("PIEZA") ){
         ui->label_importe->setText( ui->label_precio->text() );
@@ -146,17 +150,12 @@ void CajaPesaje::cambiar_indicador_peso(QString peso_string){
         bool tofloat;
         float peso = peso_string.toFloat(&tofloat);
         if(tofloat){
-            if(peso < 10){
                 ui->label_peso->setText( peso_string.setNum(peso,'f',3) );
                 float precio = ui->label_precio->text().toFloat();
                 float redondeado = redondear(precio*peso);
                 QString importe;
                 importe.setNum(redondeado,'f',2);
                 ui->label_importe->setText(importe);
-            }else{
-                ui->label_peso->setText("O/L");
-                ui->label_importe->setText("0.00");
-            }
         }else{
             if( peso_string.contains("/") ){
                 ui->label_importe->setText("0.00");
@@ -250,6 +249,14 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
             int fila = 3;
             QPainter documento;
 
+            QFile file("ultima_venta.txt");
+            if(!file.open(QIODevice::WriteOnly | QIODevice::Text)){
+                QMessageBox messageBox;
+                messageBox.critical(0,"Error","No se pudo escribir el archivo de ultima venta !");
+                messageBox.setFixedSize(500,200);
+            }
+            QTextStream out(&file);
+
             QFontDatabase::addApplicationFont(":/fonts/LucidaTypewriterRegular.ttf");
             QFont fuente = QFont("Lucida Sans Typewriter",10,QFont::Normal,false);
             fuente.setStretch(QFont::Condensed);
@@ -270,6 +277,13 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
             documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde, formattedTime); fila++;
             documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde, "========================================"); fila++;
 
+            if( file.isOpen() ){
+                out << "El Sauz Alto, Pedro Escobedo, Queretaro." << "\n";
+                out << "                                        " << "\n";
+                out << formattedTime << "\n";
+                out << "========================================" << "\n";
+            }
+
             ///Articulos Aqui
             QStringList codigos;
             QStringList cantidades;
@@ -281,6 +295,7 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
                 s += item->text(simbolo);
                 s += item->text(importe).rightJustified(7,' ',false);
                 documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde, s); fila++;
+                if( file.isOpen() ){ out << s << "\n"; }
                 codigos << item->text(codigo);
                 cantidades << item->text(peso);
             }
@@ -299,10 +314,14 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
             ui->label_total->setText("0.00");
 
             documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde, "========================================"); fila++;
+            if( file.isOpen() ){ out << "========================================" << "\n"; }
+
             fuente.setWeight(QFont::ExtraBold);
             fuente.setPointSize(15);
             documento.setFont(fuente);
             documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde+10*vspace, total_text ); fila++;
+            if( file.isOpen() ){ out << "[tot]" << total_text << "\n"; }
+
             fila++;
             fila++;
             fuente.setWeight(QFont::Normal);
@@ -320,20 +339,22 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
             int ancho_codebar = metricas_codebar.horizontalAdvance(code);
             documento.drawText( (ancho-ancho_codebar)/2 , (fila*alto_letra)+(fila*vspace)+borde+10*vspace, code );
             documento.drawText( (ancho-ancho_codebar)/2 , (fila*alto_letra)+(fila*vspace)+borde+10*vspace + alto_codebar/3, code );
+            if( file.isOpen() ){ out << "[cod]" << code << "\n"; }
 
             documento.end();
+            file.close();
 
             ///////////////////////////  DESCONTAR INVENTARIO /////////////////////////////
             bool descontar = false;
 
-            QFile file("descontar_inventario.txt");
-            if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
-                QTextStream in(&file);
+            QFile file_inv("descontar_inventario.txt");
+            if (file_inv.open(QIODevice::ReadOnly | QIODevice::Text)){
+                QTextStream in(&file_inv);
                 QString line = in.readLine();
                 if( line.contains("true") ){
                     descontar = true;
                 }
-                file.close();
+                file_inv.close();
             }
 
             if( descontar ){
@@ -554,10 +575,6 @@ void CajaPesaje::keyPressEvent(QKeyEvent *event){
     }
 }
 
-void CajaPesaje::reimpresion_ticket(){
-
-}
-
 void CajaPesaje::on_pushButton_3_clicked()
 {
     exit(0);
@@ -576,9 +593,80 @@ void CajaPesaje::on_pushButton_4_clicked()
     }
 }
 
-
 void CajaPesaje::on_pushButton_2_clicked()
 {
+    QFile file("ultima_venta.txt");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)){
+        QMessageBox messageBox;
+        messageBox.critical(0,"Error","No se ha encontrado el archivo de ultima venta !");
+        messageBox.setFixedSize(500,200);
+    }
 
+    QTextStream in(&file);
+    if(file.isOpen()){
+
+        /////////////////////////////  IMPRESION DE TICKET  ////////////////////////////
+
+        QPrinterInfo impresora_info = QPrinterInfo::defaultPrinter();
+        QPrinter impresora = QPrinter(impresora_info,
+                                      QPrinter::PrinterMode::ScreenResolution);
+        int ancho = impresora_info.defaultPageSize().rectPixels(impresora.resolution()).width();
+        qDebug() << "Ancho impresora = " << ancho;
+        int borde = 15;
+        int fila = 3;
+        QPainter documento;
+
+        QFontDatabase::addApplicationFont(":/fonts/LucidaTypewriterRegular.ttf");
+        QFont fuente = QFont("Lucida Sans Typewriter",10,QFont::Normal,false);
+        fuente.setStretch(QFont::Condensed);
+        QFontMetrics fuente_metricas = QFontMetrics(fuente);
+        int alto_letra = fuente_metricas.height();
+        int vspace = 1;
+        QDateTime date = QDateTime::currentDateTime();
+        QString formattedTime =  "Fecha :        " + date.toString("dd/MM/yyyy       hh:mm:ss");
+
+        QImage logo = QImage(":/images/small_elegant_logo.png");
+        QPoint punto = QPoint( (ancho-logo.width())/2 ,0);
+
+        documento.begin(&impresora);
+        documento.setFont(fuente);
+        documento.drawImage(punto,logo);
+
+        while (!in.atEnd()) {
+
+            QString line = in.readLine();
+
+            if( line.contains("[tot]") ){
+                line.remove(0,5);
+                fuente.setWeight(QFont::ExtraBold);
+                fuente.setPointSize(15);
+                documento.setFont(fuente);
+                documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde+10*vspace, line ); fila++;
+                fila++;
+                fila++;
+
+            }else if( line.contains("[cod]") ){
+                line.remove(0,5);
+                QFontDatabase::addApplicationFont(":/fonts/Barcode128.ttf");
+                QFont fuente_codebar = QFont("Libre Barcode 128", 48, QFont::Normal,false);
+                QFontMetrics metricas_codebar = QFontMetrics(fuente_codebar);
+                fuente_codebar.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+                documento.setFont(fuente_codebar);
+                int alto_codebar = metricas_codebar.height();
+                int ancho_codebar = metricas_codebar.horizontalAdvance(line);
+                documento.drawText( (ancho-ancho_codebar)/2 , (fila*alto_letra)+(fila*vspace)+borde+10*vspace, line );
+                documento.drawText( (ancho-ancho_codebar)/2 , (fila*alto_letra)+(fila*vspace)+borde+10*vspace + alto_codebar/3, line );
+
+            }else{
+                fuente.setWeight(QFont::Normal);
+                fuente.setPointSize(10);
+                documento.setFont(fuente);
+                documento.drawText(borde, (fila*alto_letra)+(fila*vspace)+borde, line ); fila++;
+            }
+        }
+
+        documento.end();
+        file.close();
+    }
 }
 
